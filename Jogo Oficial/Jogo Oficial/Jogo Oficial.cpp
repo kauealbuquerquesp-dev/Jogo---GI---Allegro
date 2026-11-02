@@ -1,0 +1,272 @@
+#include <stdio.h>
+#include <stdbool.h>
+#include <allegro5/allegro.h>
+#include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_font.h>
+#include <allegro5/allegro_image.h> 
+
+#define SCREEN_W 800
+#define SCREEN_H 600
+#define FPS 60.0
+
+enum GameState { STATE_PLAYING, STATE_QUESTION, STATE_GAMEOVER, STATE_NEXT_PHASE };
+enum { UP, DOWN, LEFT, RIGHT };
+
+typedef struct {
+    float x, y;
+    float dx, dy;
+    float width, height;
+    bool is_jumping;
+    float speed;
+    float jump_power;
+    int hp;
+} Player;
+
+typedef struct {
+    float x, y;
+    float width, height;
+    float speed;
+    int dir;
+} Villain;
+
+typedef struct {
+    const char* text;
+    const char* options[3];
+    int correct_option;
+} Question;
+
+bool check_collision(float x1, float y1, float w1, float h1,
+    float x2, float y2, float w2, float h2) {
+    return (x1 < x2 + w2 && x1 + w1 > x2 &&
+        y1 < y2 + h2 && y1 + h1 > y2);
+}
+
+int main(void) {
+    // Inicialização dos subsistemas
+    if (!al_init() || !al_install_keyboard() || !al_init_font_addon() || !al_init_image_addon()) {
+        fprintf(stderr, "Falha ao inicializar subsistemas do Allegro.\n");
+        return -1;
+    }
+
+    al_init_primitives_addon();
+
+    ALLEGRO_DISPLAY* display = al_create_display(SCREEN_W, SCREEN_H);
+    ALLEGRO_TIMER* timer = al_create_timer(1.0 / FPS);
+    ALLEGRO_EVENT_QUEUE* event_queue = al_create_event_queue();
+    ALLEGRO_FONT* font = al_create_builtin_font();
+
+    if (!display || !timer || !event_queue || !font) {
+        fprintf(stderr, "Falha ao alocar recursos visuais/eventos.\n");
+        return -1;
+    }
+
+    // Carregamento das Imagens
+    ALLEGRO_BITMAP* img_cenario = al_load_bitmap("cenario.png");
+    ALLEGRO_BITMAP* img_jogador = al_load_bitmap("jogador.png");
+
+    if (!img_cenario || !img_jogador) {
+        fprintf(stderr, "ATENCAO: Imagens nao encontradas! O jogo vai usar quadrados coloridos.\n");
+    }
+
+    // Variáveis de ambiente
+    const float floor_y = 440.0f; // Altura do chão alinhada com a ponte
+    const float gravity = 0.8f;
+    const float goal_x = SCREEN_W - 60.0f;
+
+    // Inicialização do Jogador
+    Player player = {
+        .x = 50.0f,
+        .y = floor_y - 70.0f, // Começa em cima do novo chão
+        .dx = 0, .dy = 0,
+        .width = 40, .height = 70, // Tamanho aumentado (40x70)
+        .is_jumping = false,
+        .speed = 5.0f, .jump_power = -15.0f,
+        .hp = 3
+    };
+
+    // Inicialização do Inimigo
+    Villain enemy = {
+        .x = SCREEN_W / 2.0f,
+        .y = floor_y - 40.0f, // Começa em cima do novo chão
+        .width = 40, .height = 40,
+        .speed = 4.0f, .dir = -1
+    };
+
+    Question trivia[2] = {
+        { "Qual eh a linguagem deste codigo?",{ "1. Java", "2. C", "3. Python" }, 1 },
+        { "Qual biblioteca grafica estamos usando?",{ "1. SDL", "2. OpenGL", "3. Allegro 5" }, 2 }
+    };
+
+    int current_state = STATE_PLAYING;
+    int current_question = 0;
+    int correct_answers = 0;
+
+    bool keys[4] = { false };
+
+    al_register_event_source(event_queue, al_get_display_event_source(display));
+    al_register_event_source(event_queue, al_get_timer_event_source(timer));
+    al_register_event_source(event_queue, al_get_keyboard_event_source());
+
+    al_start_timer(timer);
+    bool running = true;
+    bool redraw = true;
+
+    // Loop Principal
+    while (running) {
+        ALLEGRO_EVENT ev;
+        al_wait_for_event(event_queue, &ev);
+
+        if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+            running = false;
+        }
+        else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
+            if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) running = false;
+
+            if (current_state == STATE_PLAYING) {
+                switch (ev.keyboard.keycode) {
+                case ALLEGRO_KEY_UP: keys[UP] = true; break;
+                case ALLEGRO_KEY_DOWN: keys[DOWN] = true; break;
+                case ALLEGRO_KEY_LEFT: keys[LEFT] = true; break;
+                case ALLEGRO_KEY_RIGHT: keys[RIGHT] = true; break;
+                }
+            }
+            else if (current_state == STATE_QUESTION) {
+                if (ev.keyboard.keycode >= ALLEGRO_KEY_1 && ev.keyboard.keycode <= ALLEGRO_KEY_3) {
+                    int answer = ev.keyboard.keycode - ALLEGRO_KEY_1;
+                    if (answer == trivia[current_question].correct_option) {
+                        correct_answers++;
+                        current_question++;
+                        if (correct_answers == 2) current_state = STATE_NEXT_PHASE;
+                    }
+                    else {
+                        player.hp--;
+                        player.x = 50.0f;
+                        correct_answers = 0;
+                        current_question = 0;
+                        current_state = player.hp > 0 ? STATE_PLAYING : STATE_GAMEOVER;
+                    }
+                }
+            }
+        }
+        else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
+            if (current_state == STATE_PLAYING) {
+                switch (ev.keyboard.keycode) {
+                case ALLEGRO_KEY_UP: keys[UP] = false; break;
+                case ALLEGRO_KEY_DOWN: keys[DOWN] = false; break;
+                case ALLEGRO_KEY_LEFT: keys[LEFT] = false; break;
+                case ALLEGRO_KEY_RIGHT: keys[RIGHT] = false; break;
+                }
+            }
+        }
+        else if (ev.type == ALLEGRO_EVENT_TIMER) {
+            if (current_state == STATE_PLAYING) {
+                // Movimento do Jogador
+                if (keys[LEFT]) player.x -= player.speed;
+                if (keys[RIGHT]) player.x += player.speed;
+
+                if (keys[UP] && !player.is_jumping) {
+                    player.dy = player.jump_power;
+                    player.is_jumping = true;
+                }
+
+                player.dy += gravity;
+                player.y += player.dy;
+
+                // Chão e Limites
+                if (player.y + player.height >= floor_y) {
+                    player.y = floor_y - player.height;
+                    player.dy = 0;
+                    player.is_jumping = false;
+                }
+                if (player.x < 0) player.x = 0;
+                if (player.x + player.width > SCREEN_W) player.x = SCREEN_W - player.width;
+
+                // IA do Inimigo
+                enemy.x += enemy.speed * enemy.dir;
+                if (enemy.x <= 100 || enemy.x + enemy.width >= goal_x - 20) {
+                    enemy.dir *= -1;
+                }
+
+                // Colisão Jogador vs Inimigo
+                if (check_collision(player.x, player.y, player.width, player.height,
+                    enemy.x, enemy.y, enemy.width, enemy.height)) {
+                    player.hp--;
+                    player.x = 50.0f;
+                    if (player.hp <= 0) current_state = STATE_GAMEOVER;
+                }
+
+                // Zona de Objetivo
+                if (player.x >= goal_x) {
+                    current_state = STATE_QUESTION;
+                    keys[LEFT] = keys[RIGHT] = keys[UP] = false;
+                }
+            }
+            redraw = true;
+        }
+
+        // Desenho no ecrã
+        if (redraw && al_is_event_queue_empty(event_queue)) {
+            redraw = false;
+
+            // Fundo esticado para caber em 800x600
+            if (img_cenario) {
+                al_draw_scaled_bitmap(img_cenario,
+                    0, 0, al_get_bitmap_width(img_cenario), al_get_bitmap_height(img_cenario),
+                    0, 0, SCREEN_W, SCREEN_H,
+                    0);
+            }
+            else {
+                al_clear_to_color(al_map_rgb(30, 30, 30));
+                al_draw_filled_rectangle(0, floor_y, SCREEN_W, SCREEN_H, al_map_rgb(120, 120, 120));
+            }
+
+            if (current_state == STATE_PLAYING) {
+                // Objetivo (Azul) e Inimigo (Vermelho)
+                al_draw_filled_rectangle(goal_x, floor_y - 60, SCREEN_W, floor_y, al_map_rgb(0, 0, 200));
+                al_draw_filled_rectangle(enemy.x, enemy.y, enemy.x + enemy.width, enemy.y + enemy.height, al_map_rgb(200, 0, 0));
+
+                // Jogador esticado para a caixa de colisão
+                if (img_jogador) {
+                    al_draw_scaled_bitmap(img_jogador,
+                        0, 0, al_get_bitmap_width(img_jogador), al_get_bitmap_height(img_jogador),
+                        player.x, player.y, player.width, player.height,
+                        0);
+                }
+                else {
+                    al_draw_filled_rectangle(player.x, player.y, player.x + player.width, player.y + player.height, al_map_rgb(0, 200, 0));
+                }
+
+                // Vidas
+                char hud[32];
+                snprintf(hud, sizeof(hud), "Vidas: %d", player.hp);
+                al_draw_text(font, al_map_rgb(255, 255, 255), 10, 10, 0, hud);
+            }
+            else if (current_state == STATE_QUESTION) {
+                al_draw_filled_rectangle(0, 150, SCREEN_W, 350, al_map_rgba(0, 0, 0, 200));
+                al_draw_text(font, al_map_rgb(255, 255, 0), SCREEN_W / 2, 200, ALLEGRO_ALIGN_CENTER, trivia[current_question].text);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 250, ALLEGRO_ALIGN_CENTER, trivia[current_question].options[0]);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 280, ALLEGRO_ALIGN_CENTER, trivia[current_question].options[1]);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 310, ALLEGRO_ALIGN_CENTER, trivia[current_question].options[2]);
+            }
+            else if (current_state == STATE_NEXT_PHASE) {
+                al_draw_text(font, al_map_rgb(0, 255, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "Fase Concluida! Pressione ESC para sair.");
+            }
+            else if (current_state == STATE_GAMEOVER) {
+                al_draw_text(font, al_map_rgb(255, 0, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "GAME OVER! Pressione ESC para sair.");
+            }
+
+            al_flip_display();
+        }
+    }
+
+    // Limpeza de memória
+    if (img_cenario) al_destroy_bitmap(img_cenario);
+    if (img_jogador) al_destroy_bitmap(img_jogador);
+
+    al_destroy_font(font);
+    al_destroy_event_queue(event_queue);
+    al_destroy_timer(timer);
+    al_destroy_display(display);
+
+    return 0;
+}
