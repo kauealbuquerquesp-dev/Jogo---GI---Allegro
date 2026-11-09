@@ -76,9 +76,9 @@ int main(void) {
     // Inicialização do Jogador
     Player player = {
         .x = 50.0f,
-        .y = floor_y - 70.0f, // Começa em cima do novo chão
+        .y = floor_y - 100.0f, // Altura ajustada para o personagem não ficar afundado no chão
         .dx = 0, .dy = 0,
-        .width = 40, .height = 70, // Tamanho aumentado (40x70)
+        .width = 60, .height = 100, // <--- Altere estes valores se quiser deixar ainda maior ou menor
         .is_jumping = false,
         .speed = 5.0f, .jump_power = -15.0f,
         .hp = 3
