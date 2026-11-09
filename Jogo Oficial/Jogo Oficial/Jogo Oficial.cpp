@@ -222,7 +222,6 @@ int main(void) {
 
             if (current_state == STATE_PLAYING) {
                 // Objetivo (Azul) e Inimigo (Vermelho)
-                al_draw_filled_rectangle(goal_x, floor_y - 60, SCREEN_W, floor_y, al_map_rgb(0, 0, 200));
                 al_draw_filled_rectangle(enemy.x, enemy.y, enemy.x + enemy.width, enemy.y + enemy.height, al_map_rgb(200, 0, 0));
 
                 // Jogador esticado para a caixa de colisão
