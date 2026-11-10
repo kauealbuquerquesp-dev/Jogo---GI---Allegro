@@ -42,7 +42,7 @@ bool check_collision(float x1, float y1, float w1, float h1,
 }
 
 int main(void) {
-    // Inicialização dos subsistemas
+    // Inicialização
     if (!al_init() || !al_install_keyboard() || !al_init_font_addon() || !al_init_image_addon()) {
         fprintf(stderr, "Falha ao inicializar subsistemas do Allegro.\n");
         return -1;
@@ -63,23 +63,23 @@ int main(void) {
     // Carregamento das Imagens
     ALLEGRO_BITMAP* img_cenario = al_load_bitmap("cenario.png");
     ALLEGRO_BITMAP* img_jogador = al_load_bitmap("jogador.png");
-    ALLEGRO_BITMAP* img_vilao = al_load_bitmap("vilao.png"); // <--- ADICIONE ESTA LINHA
+    ALLEGRO_BITMAP* img_vilao = al_load_bitmap("vilao.png");
 
     if (!img_cenario || !img_jogador || !img_vilao) {
         fprintf(stderr, "ATENCAO: Alguma imagem nao foi encontrada!\n");
     }
 
     // Variáveis de ambiente
-    const float floor_y = 440.0f; // Altura do chão alinhada com a ponte
+    const float floor_y = 460.0f; // altura do chão com a ponte
     const float gravity = 0.8f;
     const float goal_x = SCREEN_W - 60.0f;
 
     // Inicialização do Jogador
     Player player = {
-        .x = 50.0f,
-        .y = floor_y - 100.0f, // Altura ajustada para o personagem não ficar afundado no chão
+        .x = 20.0f,
+        .y = floor_y - 100.0f,
         .dx = 0, .dy = 0,
-        .width = 60, .height = 100, // <--- Altere estes valores se quiser deixar ainda maior ou menor
+        .width = 80, .height = 120,
         .is_jumping = false,
         .speed = 5.0f, .jump_power = -15.0f,
         .hp = 3
@@ -88,8 +88,8 @@ int main(void) {
     // Inicialização do Inimigo
     Villain enemy = {
         .x = SCREEN_W / 2.0f,
-        .y = floor_y - 40.0f, // Começa em cima do novo chão
-        .width = 40, .height = 40,
+        .y = floor_y - 110.0f,
+        .width = 100, .height = 95,
         .speed = 4.0f, .dir = -1
     };
 
@@ -173,7 +173,7 @@ int main(void) {
                 player.dy += gravity;
                 player.y += player.dy;
 
-                // Chão e Limites
+                // Chão Limite
                 if (player.y + player.height >= floor_y) {
                     player.y = floor_y - player.height;
                     player.dy = 0;
@@ -182,13 +182,13 @@ int main(void) {
                 if (player.x < 0) player.x = 0;
                 if (player.x + player.width > SCREEN_W) player.x = SCREEN_W - player.width;
 
-                // IA do Inimigo
+                // Inimigo
                 enemy.x += enemy.speed * enemy.dir;
                 if (enemy.x <= 100 || enemy.x + enemy.width >= goal_x - 20) {
                     enemy.dir *= -1;
                 }
 
-                // Colisão Jogador vs Inimigo
+                // Colisão Jogador e Inimigo
                 if (check_collision(player.x, player.y, player.width, player.height,
                     enemy.x, enemy.y, enemy.width, enemy.height)) {
                     player.hp--;
@@ -196,7 +196,7 @@ int main(void) {
                     if (player.hp <= 0) current_state = STATE_GAMEOVER;
                 }
 
-                // Zona de Objetivo
+                // Objetivo
                 if (player.x >= goal_x) {
                     current_state = STATE_QUESTION;
                     keys[LEFT] = keys[RIGHT] = keys[UP] = false;
@@ -205,11 +205,11 @@ int main(void) {
             redraw = true;
         }
 
-        // Desenho no ecrã
+       
         if (redraw && al_is_event_queue_empty(event_queue)) {
             redraw = false;
 
-            // Fundo esticado para caber em 800x600
+            // Fundo em 800x600
             if (img_cenario) {
                 al_draw_scaled_bitmap(img_cenario,
                     0, 0, al_get_bitmap_width(img_cenario), al_get_bitmap_height(img_cenario),
@@ -222,7 +222,7 @@ int main(void) {
             }
 
             if (current_state == STATE_PLAYING) {
-                // Objetivo (Azul) e Inimigo (Vermelho)
+                // Objetivo (invisivel) e Inimigo 
                 if (img_vilao) {
                     al_draw_scaled_bitmap(img_vilao,
                         0, 0, al_get_bitmap_width(img_vilao), al_get_bitmap_height(img_vilao),
@@ -233,7 +233,7 @@ int main(void) {
                     al_draw_filled_rectangle(enemy.x, enemy.y, enemy.x + enemy.width, enemy.y + enemy.height, al_map_rgb(200, 0, 0));
                 }
 
-                // Jogador esticado para a caixa de colisão
+                // Jogador 
                 if (img_jogador) {
                     al_draw_scaled_bitmap(img_jogador,
                         0, 0, al_get_bitmap_width(img_jogador), al_get_bitmap_height(img_jogador),
