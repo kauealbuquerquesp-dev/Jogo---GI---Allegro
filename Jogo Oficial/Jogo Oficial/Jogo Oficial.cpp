@@ -9,8 +9,8 @@
 #define SCREEN_H 600
 #define FPS 60.0
 
-// 
-enum GameState { STATE_PLAYING, STATE_QUESTION, STATE_GAMEOVER, STATE_NEXT_PHASE, STATE_PHASE_2 };
+//
+enum GameState { STATE_PLAYING, STATE_QUESTION, STATE_GAMEOVER, STATE_NEXT_PHASE, STATE_PHASE_2, STATE_QUESTION_2 };
 enum { UP, DOWN, LEFT, RIGHT };
 
 typedef struct {
@@ -95,9 +95,16 @@ int main(void) {
         .speed = 4.0f, .dir = -1
     };
 
-    Question trivia[2] = {
-        { "Qual eh a linguagem deste codigo?",{ "1. Java", "2. C", "3. Python" }, 1 },
-        { "Qual biblioteca grafica estamos usando?",{ "1. SDL", "2. OpenGL", "3. Allegro 5" }, 2 }
+    // Perguntas da Fase 1
+    Question trivia_phase1[2] = {
+        { "Em qual região geográfica a civilização maia se desenvolveu?",{ "1. Península de Iucatã", "2. Norte da América do Norte", "3. Região Andina" }, 0 },
+        { "Qual era o principal produto agrícola cultivado pelos maias, considerado sagrado?",{ "1. Batata", "2. Trigo", "3. Milho" }, 2 }
+    };
+
+    // Perguntas da Fase 2
+    Question trivia_phase2[2] = {
+        { "Qual rio permitiu o florescimento da civilização egípcia no deserto?",{ "1. Rio Amazonas", "2. Rio Nilo", "3. Rio Tigre" }, 1 },
+        { "Qual era a principal finalidade das monumentais pirâmides no Egito Antigo?",{ "1. Torres de vigia", "2. Estoque para guardar grãos", "3. Tumbas para os faraós" }, 2 }
     };
 
     int current_state = STATE_PLAYING;
@@ -133,14 +140,15 @@ int main(void) {
                 case ALLEGRO_KEY_RIGHT: keys[RIGHT] = true; break;
                 }
             }
+            // Resposta 1
             else if (current_state == STATE_QUESTION) {
                 if (ev.keyboard.keycode >= ALLEGRO_KEY_1 && ev.keyboard.keycode <= ALLEGRO_KEY_3) {
                     int answer = ev.keyboard.keycode - ALLEGRO_KEY_1;
-                    if (answer == trivia[current_question].correct_option) {
+                    if (answer == trivia_phase1[current_question].correct_option) {
                         correct_answers++;
                         current_question++;
                         if (correct_answers == 2) {
-                            // Acertou as perguntas da Fase 1, avança á Fase 2!
+                            // Acertou as perguntas da Fase 1, avança para a Fase 2!
                             current_state = STATE_PHASE_2;
                             player.x = 20.0f; // Reinicia jogador
                             correct_answers = 0;
@@ -153,6 +161,26 @@ int main(void) {
                         correct_answers = 0;
                         current_question = 0;
                         current_state = player.hp > 0 ? STATE_PLAYING : STATE_GAMEOVER;
+                    }
+                }
+            }
+            // Resposta 2
+            else if (current_state == STATE_QUESTION_2) {
+                if (ev.keyboard.keycode >= ALLEGRO_KEY_1 && ev.keyboard.keycode <= ALLEGRO_KEY_3) {
+                    int answer = ev.keyboard.keycode - ALLEGRO_KEY_1;
+                    if (answer == trivia_phase2[current_question].correct_option) {
+                        correct_answers++;
+                        current_question++;
+                        if (correct_answers == 2) {
+                            current_state = STATE_NEXT_PHASE;
+                        }
+                    }
+                    else {
+                        player.hp--;
+                        player.x = 20.0f;
+                        correct_answers = 0;
+                        current_question = 0;
+                        current_state = player.hp > 0 ? STATE_PHASE_2 : STATE_GAMEOVER;
                     }
                 }
             }
@@ -207,10 +235,10 @@ int main(void) {
                 // Objetivo Invisível no fim da fase
                 if (player.x >= goal_x) {
                     if (current_state == STATE_PLAYING) {
-                        current_state = STATE_QUESTION; // Abre perguntas da fase 1
+                        current_state = STATE_QUESTION; 
                     }
                     else if (current_state == STATE_PHASE_2) {
-                        current_state = STATE_NEXT_PHASE; // Conclui o jogo após a fase 2
+                        current_state = STATE_QUESTION_2;
                     }
                     keys[LEFT] = keys[RIGHT] = keys[UP] = false;
                 }
@@ -222,7 +250,7 @@ int main(void) {
             redraw = false;
 
             // Fundo com a fase certa
-            if (current_state == STATE_PHASE_2) {
+            if (current_state == STATE_PHASE_2 || current_state == STATE_QUESTION_2) {
                 if (img_cenario2) {
                     al_draw_scaled_bitmap(img_cenario2,
                         0, 0, al_get_bitmap_width(img_cenario2), al_get_bitmap_height(img_cenario2),
@@ -232,7 +260,6 @@ int main(void) {
                 else {
                     al_clear_to_color(al_map_rgb(20, 40, 20));
                 }
-               
             }
             else {
                 if (img_cenario1) {
@@ -246,7 +273,6 @@ int main(void) {
                     al_draw_filled_rectangle(0, floor_y, SCREEN_W, SCREEN_H, al_map_rgb(120, 120, 120));
                 }
             }
-     
 
             if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
                 // Inimigo 
@@ -276,12 +302,21 @@ int main(void) {
                 snprintf(hud, sizeof(hud), "Vidas: %d", player.hp);
                 al_draw_text(font, al_map_rgb(255, 255, 255), 10, 10, 0, hud);
             }
+            // Perguntas da Fase 1
             else if (current_state == STATE_QUESTION) {
                 al_draw_filled_rectangle(0, 150, SCREEN_W, 350, al_map_rgba(0, 0, 0, 200));
-                al_draw_text(font, al_map_rgb(255, 255, 0), SCREEN_W / 2, 200, ALLEGRO_ALIGN_CENTER, trivia[current_question].text);
-                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 250, ALLEGRO_ALIGN_CENTER, trivia[current_question].options[0]);
-                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 280, ALLEGRO_ALIGN_CENTER, trivia[current_question].options[1]);
-                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 310, ALLEGRO_ALIGN_CENTER, trivia[current_question].options[2]);
+                al_draw_text(font, al_map_rgb(255, 255, 0), SCREEN_W / 2, 200, ALLEGRO_ALIGN_CENTER, trivia_phase1[current_question].text);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 250, ALLEGRO_ALIGN_CENTER, trivia_phase1[current_question].options[0]);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 280, ALLEGRO_ALIGN_CENTER, trivia_phase1[current_question].options[1]);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 310, ALLEGRO_ALIGN_CENTER, trivia_phase1[current_question].options[2]);
+            }
+            // Perguntas da Fase 2
+            else if (current_state == STATE_QUESTION_2) {
+                al_draw_filled_rectangle(0, 150, SCREEN_W, 350, al_map_rgba(0, 0, 0, 200));
+                al_draw_text(font, al_map_rgb(255, 255, 0), SCREEN_W / 2, 200, ALLEGRO_ALIGN_CENTER, trivia_phase2[current_question].text);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 250, ALLEGRO_ALIGN_CENTER, trivia_phase2[current_question].options[0]);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 280, ALLEGRO_ALIGN_CENTER, trivia_phase2[current_question].options[1]);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 310, ALLEGRO_ALIGN_CENTER, trivia_phase2[current_question].options[2]);
             }
             else if (current_state == STATE_NEXT_PHASE) {
                 al_draw_text(font, al_map_rgb(0, 255, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "Parabens! Jogo Concluido! Pressione ESC.");
