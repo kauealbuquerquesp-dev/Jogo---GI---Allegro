@@ -9,7 +9,8 @@
 #define SCREEN_H 600
 #define FPS 60.0
 
-enum GameState { STATE_PLAYING, STATE_QUESTION, STATE_GAMEOVER, STATE_NEXT_PHASE };
+// 
+enum GameState { STATE_PLAYING, STATE_QUESTION, STATE_GAMEOVER, STATE_NEXT_PHASE, STATE_PHASE_2 };
 enum { UP, DOWN, LEFT, RIGHT };
 
 typedef struct {
@@ -61,18 +62,19 @@ int main(void) {
     }
 
     // Carregamento das Imagens
-    ALLEGRO_BITMAP* img_cenario = al_load_bitmap("cenario.png");
+    ALLEGRO_BITMAP* img_cenario1 = al_load_bitmap("cenario.png");
+    ALLEGRO_BITMAP* img_cenario2 = al_load_bitmap("edito pixilart.png"); // Cenário da Fase 2
     ALLEGRO_BITMAP* img_jogador = al_load_bitmap("jogador.png");
     ALLEGRO_BITMAP* img_vilao = al_load_bitmap("vilao.png");
 
-    if (!img_cenario || !img_jogador || !img_vilao) {
+    if (!img_cenario1 || !img_cenario2 || !img_jogador || !img_vilao) {
         fprintf(stderr, "ATENCAO: Alguma imagem nao foi encontrada!\n");
     }
 
     // Variáveis de ambiente
     const float floor_y = 460.0f; // altura do chão com a ponte
     const float gravity = 0.8f;
-    const float goal_x = SCREEN_W - 60.0f;
+    const float goal_x = SCREEN_W - 90.0f;
 
     // Inicialização do Jogador
     Player player = {
@@ -81,7 +83,7 @@ int main(void) {
         .dx = 0, .dy = 0,
         .width = 80, .height = 120,
         .is_jumping = false,
-        .speed = 5.0f, .jump_power = -15.0f,
+        .speed = 5.0f, .jump_power = -18.0f,
         .hp = 3
     };
 
@@ -123,7 +125,7 @@ int main(void) {
         else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
             if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) running = false;
 
-            if (current_state == STATE_PLAYING) {
+            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
                 switch (ev.keyboard.keycode) {
                 case ALLEGRO_KEY_UP: keys[UP] = true; break;
                 case ALLEGRO_KEY_DOWN: keys[DOWN] = true; break;
@@ -137,7 +139,13 @@ int main(void) {
                     if (answer == trivia[current_question].correct_option) {
                         correct_answers++;
                         current_question++;
-                        if (correct_answers == 2) current_state = STATE_NEXT_PHASE;
+                        if (correct_answers == 2) {
+                            // Acertou as perguntas da Fase 1, avança á Fase 2!
+                            current_state = STATE_PHASE_2;
+                            player.x = 20.0f; // Reinicia jogador
+                            correct_answers = 0;
+                            current_question = 0;
+                        }
                     }
                     else {
                         player.hp--;
@@ -150,7 +158,7 @@ int main(void) {
             }
         }
         else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
-            if (current_state == STATE_PLAYING) {
+            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
                 switch (ev.keyboard.keycode) {
                 case ALLEGRO_KEY_UP: keys[UP] = false; break;
                 case ALLEGRO_KEY_DOWN: keys[DOWN] = false; break;
@@ -160,7 +168,7 @@ int main(void) {
             }
         }
         else if (ev.type == ALLEGRO_EVENT_TIMER) {
-            if (current_state == STATE_PLAYING) {
+            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
                 // Movimento do Jogador
                 if (keys[LEFT]) player.x -= player.speed;
                 if (keys[RIGHT]) player.x += player.speed;
@@ -196,33 +204,52 @@ int main(void) {
                     if (player.hp <= 0) current_state = STATE_GAMEOVER;
                 }
 
-                // Objetivo
+                // Objetivo Invisível no fim da fase
                 if (player.x >= goal_x) {
-                    current_state = STATE_QUESTION;
+                    if (current_state == STATE_PLAYING) {
+                        current_state = STATE_QUESTION; // Abre perguntas da fase 1
+                    }
+                    else if (current_state == STATE_PHASE_2) {
+                        current_state = STATE_NEXT_PHASE; // Conclui o jogo após a fase 2
+                    }
                     keys[LEFT] = keys[RIGHT] = keys[UP] = false;
                 }
             }
             redraw = true;
         }
 
-       
         if (redraw && al_is_event_queue_empty(event_queue)) {
             redraw = false;
 
-            // Fundo em 800x600
-            if (img_cenario) {
-                al_draw_scaled_bitmap(img_cenario,
-                    0, 0, al_get_bitmap_width(img_cenario), al_get_bitmap_height(img_cenario),
-                    0, 0, SCREEN_W, SCREEN_H,
-                    0);
+            // Fundo com a fase certa
+            if (current_state == STATE_PHASE_2) {
+                if (img_cenario2) {
+                    al_draw_scaled_bitmap(img_cenario2,
+                        0, 0, al_get_bitmap_width(img_cenario2), al_get_bitmap_height(img_cenario2),
+                        0, 0, SCREEN_W, SCREEN_H,
+                        0);
+                }
+                else {
+                    al_clear_to_color(al_map_rgb(20, 40, 20));
+                }
+               
             }
             else {
-                al_clear_to_color(al_map_rgb(30, 30, 30));
-                al_draw_filled_rectangle(0, floor_y, SCREEN_W, SCREEN_H, al_map_rgb(120, 120, 120));
+                if (img_cenario1) {
+                    al_draw_scaled_bitmap(img_cenario1,
+                        0, 0, al_get_bitmap_width(img_cenario1), al_get_bitmap_height(img_cenario1),
+                        0, 0, SCREEN_W, SCREEN_H,
+                        0);
+                }
+                else {
+                    al_clear_to_color(al_map_rgb(30, 30, 30));
+                    al_draw_filled_rectangle(0, floor_y, SCREEN_W, SCREEN_H, al_map_rgb(120, 120, 120));
+                }
             }
+     
 
-            if (current_state == STATE_PLAYING) {
-                // Objetivo (invisivel) e Inimigo 
+            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
+                // Inimigo 
                 if (img_vilao) {
                     al_draw_scaled_bitmap(img_vilao,
                         0, 0, al_get_bitmap_width(img_vilao), al_get_bitmap_height(img_vilao),
@@ -257,7 +284,7 @@ int main(void) {
                 al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 310, ALLEGRO_ALIGN_CENTER, trivia[current_question].options[2]);
             }
             else if (current_state == STATE_NEXT_PHASE) {
-                al_draw_text(font, al_map_rgb(0, 255, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "Fase Concluida! Pressione ESC para sair.");
+                al_draw_text(font, al_map_rgb(0, 255, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "Parabens! Jogo Concluido! Pressione ESC.");
             }
             else if (current_state == STATE_GAMEOVER) {
                 al_draw_text(font, al_map_rgb(255, 0, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "GAME OVER! Pressione ESC para sair.");
@@ -268,7 +295,8 @@ int main(void) {
     }
 
     // Limpeza de memória
-    if (img_cenario) al_destroy_bitmap(img_cenario);
+    if (img_cenario1) al_destroy_bitmap(img_cenario1);
+    if (img_cenario2) al_destroy_bitmap(img_cenario2);
     if (img_jogador) al_destroy_bitmap(img_jogador);
     if (img_vilao) al_destroy_bitmap(img_vilao);
 
