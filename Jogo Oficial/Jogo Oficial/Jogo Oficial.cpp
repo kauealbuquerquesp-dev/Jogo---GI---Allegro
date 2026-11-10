@@ -63,9 +63,10 @@ int main(void) {
     // Carregamento das Imagens
     ALLEGRO_BITMAP* img_cenario = al_load_bitmap("cenario.png");
     ALLEGRO_BITMAP* img_jogador = al_load_bitmap("jogador.png");
+    ALLEGRO_BITMAP* img_vilao = al_load_bitmap("vilao.png"); // <--- ADICIONE ESTA LINHA
 
-    if (!img_cenario || !img_jogador) {
-        fprintf(stderr, "ATENCAO: Imagens nao encontradas! O jogo vai usar quadrados coloridos.\n");
+    if (!img_cenario || !img_jogador || !img_vilao) {
+        fprintf(stderr, "ATENCAO: Alguma imagem nao foi encontrada!\n");
     }
 
     // Variáveis de ambiente
@@ -222,7 +223,15 @@ int main(void) {
 
             if (current_state == STATE_PLAYING) {
                 // Objetivo (Azul) e Inimigo (Vermelho)
-                al_draw_filled_rectangle(enemy.x, enemy.y, enemy.x + enemy.width, enemy.y + enemy.height, al_map_rgb(200, 0, 0));
+                if (img_vilao) {
+                    al_draw_scaled_bitmap(img_vilao,
+                        0, 0, al_get_bitmap_width(img_vilao), al_get_bitmap_height(img_vilao),
+                        enemy.x, enemy.y, enemy.width, enemy.height,
+                        0);
+                }
+                else {
+                    al_draw_filled_rectangle(enemy.x, enemy.y, enemy.x + enemy.width, enemy.y + enemy.height, al_map_rgb(200, 0, 0));
+                }
 
                 // Jogador esticado para a caixa de colisão
                 if (img_jogador) {
@@ -261,6 +270,7 @@ int main(void) {
     // Limpeza de memória
     if (img_cenario) al_destroy_bitmap(img_cenario);
     if (img_jogador) al_destroy_bitmap(img_jogador);
+    if (img_vilao) al_destroy_bitmap(img_vilao);
 
     al_destroy_font(font);
     al_destroy_event_queue(event_queue);
