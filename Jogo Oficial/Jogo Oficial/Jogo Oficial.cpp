@@ -9,8 +9,8 @@
 #define SCREEN_H 600
 #define FPS 60.0
 
-//
-enum GameState { STATE_PLAYING, STATE_QUESTION, STATE_GAMEOVER, STATE_NEXT_PHASE, STATE_PHASE_2, STATE_QUESTION_2 };
+// 
+enum GameState { STATE_PLAYING, STATE_QUESTION, STATE_GAMEOVER, STATE_NEXT_PHASE, STATE_PHASE_2, STATE_QUESTION_2, STATE_PHASE_3, STATE_QUESTION_3 };
 enum { UP, DOWN, LEFT, RIGHT };
 
 typedef struct {
@@ -61,13 +61,14 @@ int main(void) {
         return -1;
     }
 
-    // Carregamento das Imagens
+    // Carregamento das Imagens (incluindo o terceiro cenário)
     ALLEGRO_BITMAP* img_cenario1 = al_load_bitmap("cenario.png");
-    ALLEGRO_BITMAP* img_cenario2 = al_load_bitmap("edito pixilart.png"); // Cenário da Fase 2
+    ALLEGRO_BITMAP* img_cenario2 = al_load_bitmap("edito pixilart.png");
+    ALLEGRO_BITMAP* img_cenario3 = al_load_bitmap("grecia_antiga.png"); 
     ALLEGRO_BITMAP* img_jogador = al_load_bitmap("jogador.png");
     ALLEGRO_BITMAP* img_vilao = al_load_bitmap("vilao.png");
 
-    if (!img_cenario1 || !img_cenario2 || !img_jogador || !img_vilao) {
+    if (!img_cenario1 || !img_cenario2 || !img_cenario3 || !img_jogador || !img_vilao) {
         fprintf(stderr, "ATENCAO: Alguma imagem nao foi encontrada!\n");
     }
 
@@ -95,16 +96,22 @@ int main(void) {
         .speed = 4.0f, .dir = -1
     };
 
-    // Perguntas da Fase 1
+    // Perguntas da Fase 1 (Civilização Maia)
     Question trivia_phase1[2] = {
         { "Em qual região geográfica a civilização maia se desenvolveu?",{ "1. Península de Iucatã", "2. Norte da América do Norte", "3. Região Andina" }, 0 },
         { "Qual era o principal produto agrícola cultivado pelos maias, considerado sagrado?",{ "1. Batata", "2. Trigo", "3. Milho" }, 2 }
     };
 
-    // Perguntas da Fase 2
+    // Perguntas da Fase 2 (Egito Antigo)
     Question trivia_phase2[2] = {
         { "Qual rio permitiu o florescimento da civilização egípcia no deserto?",{ "1. Rio Amazonas", "2. Rio Nilo", "3. Rio Tigre" }, 1 },
         { "Qual era a principal finalidade das monumentais pirâmides no Egito Antigo?",{ "1. Torres de vigia", "2. Estoque para guardar grãos", "3. Tumbas para os faraós" }, 2 }
+    };
+
+    // Perguntas da Fase 3 (Grécia Antiga)
+    Question trivia_phase3[2] = {
+        { "Qual cidade-estado grega é considerada o berço da democracia?",{ "1. Esparta", "2. Atenas", "3. Troia" }, 1 },
+        { "Qual famosa competição esportiva teve origem na Grécia Antiga?",{ "1. Jogos Olímpicos", "2. Torneios de gladiadores", "3. Corridas de bigas romanas" }, 0 }
     };
 
     int current_state = STATE_PLAYING;
@@ -132,7 +139,7 @@ int main(void) {
         else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
             if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) running = false;
 
-            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
+            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2 || current_state == STATE_PHASE_3) {
                 switch (ev.keyboard.keycode) {
                 case ALLEGRO_KEY_UP: keys[UP] = true; break;
                 case ALLEGRO_KEY_DOWN: keys[DOWN] = true; break;
@@ -140,7 +147,7 @@ int main(void) {
                 case ALLEGRO_KEY_RIGHT: keys[RIGHT] = true; break;
                 }
             }
-            // Resposta 1
+            // Resposta 1 (Fase 1)
             else if (current_state == STATE_QUESTION) {
                 if (ev.keyboard.keycode >= ALLEGRO_KEY_1 && ev.keyboard.keycode <= ALLEGRO_KEY_3) {
                     int answer = ev.keyboard.keycode - ALLEGRO_KEY_1;
@@ -148,9 +155,8 @@ int main(void) {
                         correct_answers++;
                         current_question++;
                         if (correct_answers == 2) {
-                            // Acertou as perguntas da Fase 1, avança para a Fase 2!
-                            current_state = STATE_PHASE_2;
-                            player.x = 20.0f; // Reinicia jogador
+                            current_state = STATE_PHASE_2; // Avança para a Fase 2
+                            player.x = 20.0f;
                             correct_answers = 0;
                             current_question = 0;
                         }
@@ -164,7 +170,7 @@ int main(void) {
                     }
                 }
             }
-            // Resposta 2
+            // Resposta 2 (Fase 2)
             else if (current_state == STATE_QUESTION_2) {
                 if (ev.keyboard.keycode >= ALLEGRO_KEY_1 && ev.keyboard.keycode <= ALLEGRO_KEY_3) {
                     int answer = ev.keyboard.keycode - ALLEGRO_KEY_1;
@@ -172,7 +178,10 @@ int main(void) {
                         correct_answers++;
                         current_question++;
                         if (correct_answers == 2) {
-                            current_state = STATE_NEXT_PHASE;
+                            current_state = STATE_PHASE_3; // Avança para a Fase 3
+                            player.x = 20.0f;
+                            correct_answers = 0;
+                            current_question = 0;
                         }
                     }
                     else {
@@ -184,9 +193,29 @@ int main(void) {
                     }
                 }
             }
+            // Resposta 3 (Fase 3)
+            else if (current_state == STATE_QUESTION_3) {
+                if (ev.keyboard.keycode >= ALLEGRO_KEY_1 && ev.keyboard.keycode <= ALLEGRO_KEY_3) {
+                    int answer = ev.keyboard.keycode - ALLEGRO_KEY_1;
+                    if (answer == trivia_phase3[current_question].correct_option) {
+                        correct_answers++;
+                        current_question++;
+                        if (correct_answers == 2) {
+                            current_state = STATE_NEXT_PHASE; // Jogo Concluído!
+                        }
+                    }
+                    else {
+                        player.hp--;
+                        player.x = 20.0f;
+                        correct_answers = 0;
+                        current_question = 0;
+                        current_state = player.hp > 0 ? STATE_PHASE_3 : STATE_GAMEOVER;
+                    }
+                }
+            }
         }
         else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
-            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
+            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2 || current_state == STATE_PHASE_3) {
                 switch (ev.keyboard.keycode) {
                 case ALLEGRO_KEY_UP: keys[UP] = false; break;
                 case ALLEGRO_KEY_DOWN: keys[DOWN] = false; break;
@@ -196,7 +225,7 @@ int main(void) {
             }
         }
         else if (ev.type == ALLEGRO_EVENT_TIMER) {
-            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
+            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2 || current_state == STATE_PHASE_3) {
                 // Movimento do Jogador
                 if (keys[LEFT]) player.x -= player.speed;
                 if (keys[RIGHT]) player.x += player.speed;
@@ -235,10 +264,13 @@ int main(void) {
                 // Objetivo Invisível no fim da fase
                 if (player.x >= goal_x) {
                     if (current_state == STATE_PLAYING) {
-                        current_state = STATE_QUESTION; 
+                        current_state = STATE_QUESTION;     // Abre perguntas da Fase 1
                     }
                     else if (current_state == STATE_PHASE_2) {
-                        current_state = STATE_QUESTION_2;
+                        current_state = STATE_QUESTION_2;   // Abre perguntas da Fase 2
+                    }
+                    else if (current_state == STATE_PHASE_3) {
+                        current_state = STATE_QUESTION_3;   // Abre perguntas da Fase 3
                     }
                     keys[LEFT] = keys[RIGHT] = keys[UP] = false;
                 }
@@ -261,6 +293,17 @@ int main(void) {
                     al_clear_to_color(al_map_rgb(20, 40, 20));
                 }
             }
+            else if (current_state == STATE_PHASE_3 || current_state == STATE_QUESTION_3) {
+                if (img_cenario3) {
+                    al_draw_scaled_bitmap(img_cenario3,
+                        0, 0, al_get_bitmap_width(img_cenario3), al_get_bitmap_height(img_cenario3),
+                        0, 0, SCREEN_W, SCREEN_H,
+                        0);
+                }
+                else {
+                    al_clear_to_color(al_map_rgb(40, 20, 40));
+                }
+            }
             else {
                 if (img_cenario1) {
                     al_draw_scaled_bitmap(img_cenario1,
@@ -274,7 +317,7 @@ int main(void) {
                 }
             }
 
-            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2) {
+            if (current_state == STATE_PLAYING || current_state == STATE_PHASE_2 || current_state == STATE_PHASE_3) {
                 // Inimigo 
                 if (img_vilao) {
                     al_draw_scaled_bitmap(img_vilao,
@@ -318,11 +361,19 @@ int main(void) {
                 al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 280, ALLEGRO_ALIGN_CENTER, trivia_phase2[current_question].options[1]);
                 al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 310, ALLEGRO_ALIGN_CENTER, trivia_phase2[current_question].options[2]);
             }
+            // Perguntas da Fase 3
+            else if (current_state == STATE_QUESTION_3) {
+                al_draw_filled_rectangle(0, 150, SCREEN_W, 350, al_map_rgba(0, 0, 0, 200));
+                al_draw_text(font, al_map_rgb(255, 255, 0), SCREEN_W / 2, 200, ALLEGRO_ALIGN_CENTER, trivia_phase3[current_question].text);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 250, ALLEGRO_ALIGN_CENTER, trivia_phase3[current_question].options[0]);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 280, ALLEGRO_ALIGN_CENTER, trivia_phase3[current_question].options[1]);
+                al_draw_text(font, al_map_rgb(255, 255, 255), SCREEN_W / 2, 310, ALLEGRO_ALIGN_CENTER, trivia_phase3[current_question].options[2]);
+            }
             else if (current_state == STATE_NEXT_PHASE) {
-                al_draw_text(font, al_map_rgb(0, 255, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "Parabens! Jogo Concluido! Pressione ESC.");
+                al_draw_text(font, al_map_rgb(0, 255, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "Parabens! Você venceu!");
             }
             else if (current_state == STATE_GAMEOVER) {
-                al_draw_text(font, al_map_rgb(255, 0, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "GAME OVER! Pressione ESC para sair.");
+                al_draw_text(font, al_map_rgb(255, 0, 0), SCREEN_W / 2, SCREEN_H / 2, ALLEGRO_ALIGN_CENTER, "GAME OVER!");
             }
 
             al_flip_display();
@@ -332,6 +383,7 @@ int main(void) {
     // Limpeza de memória
     if (img_cenario1) al_destroy_bitmap(img_cenario1);
     if (img_cenario2) al_destroy_bitmap(img_cenario2);
+    if (img_cenario3) al_destroy_bitmap(img_cenario3);
     if (img_jogador) al_destroy_bitmap(img_jogador);
     if (img_vilao) al_destroy_bitmap(img_vilao);
 
